@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 
-# Caminho para salvar o arquivo de clientes (CSV ou Excel
+# Caminho para salvar o arquivo de clientes (CSV ou Excel)
 FILE_PATH = "clientes.csv"  # Pode ser alterado para "clientes.xlsx" se preferir Excel
 
 # Função para carregar os dados dos clientes do arquivo (CSV ou Excel)
@@ -67,6 +67,17 @@ def painel():
         
         # Editar cliente
         cliente_para_editar = st.selectbox("Selecione um cliente para editar", ["Selecione um cliente"] + list(clientes["Nome"].unique()))
+        
+        # Se um cliente for selecionado, preencher os campos de edição com os dados atuais do cliente
+        if cliente_para_editar != "Selecione um cliente":
+            cliente_selecionado = clientes[clientes["Nome"] == cliente_para_editar].iloc[0]
+            nome_cliente = st.text_input("Nome do Cliente", cliente_selecionado["Nome"], key="nome_cliente")
+            mensalidade = st.number_input("Mensalidade", value=cliente_selecionado["Mensalidade"], format="%.2f", key="mensalidade")
+            data_pagamento = st.date_input("Data do Pagamento", value=pd.to_datetime(cliente_selecionado["Data de Pagamento"]), key="data_pagamento")
+            inicio_contrato = st.date_input("Início do Contrato", value=pd.to_datetime(cliente_selecionado["Início do Contrato"]), key="inicio_contrato")
+            fim_contrato = st.date_input("Fim do Contrato", value=pd.to_datetime(cliente_selecionado["Fim do Contrato"]), key="fim_contrato")
+            status_pagamento = st.selectbox("Status do Pagamento", ["Pago", "Pendente"], index=["Pago", "Pendente"].index(cliente_selecionado["Status"]), key="status_pagamento")
+
         submitted = st.form_submit_button("Adicionar ou Editar Cliente")
         
         if submitted:
@@ -87,7 +98,7 @@ def painel():
                     st.success(f"Cliente {nome_cliente} editado com sucesso!")
 
                 salvar_dados_clientes(clientes)  # Salvar os dados atualizados no arquivo
-                
+
                 # Limpar os campos de input após o cadastro ou edição
                 st.session_state.nome_cliente = ""  # Limpar o campo Nome
                 st.session_state.mensalidade = 0.0  # Limpar o campo Mensalidade
@@ -95,6 +106,7 @@ def painel():
                 st.session_state.inicio_contrato = ""  # Limpar o campo Início do Contrato
                 st.session_state.fim_contrato = ""  # Limpar o campo Fim do Contrato
                 st.session_state.status_pagamento = ""  # Limpar o campo Status de Pagamento
+                
                 st.experimental_rerun()  # Recarrega a página para limpar os campos e mostrar os dados atualizados
 
             else:
