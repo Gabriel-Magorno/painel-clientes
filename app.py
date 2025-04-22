@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 
-# Caminho para salvar o arquivo de clientes (CSV ou Excel)
+# Caminho para salvar o arquivo de clientes (CSV ou Excel
 FILE_PATH = "clientes.csv"  # Pode ser alterado para "clientes.xlsx" se preferir Excel
 
 # Função para carregar os dados dos clientes do arquivo (CSV ou Excel)
@@ -95,7 +95,7 @@ def painel():
                 st.session_state.inicio_contrato = ""  # Limpar o campo Início do Contrato
                 st.session_state.fim_contrato = ""  # Limpar o campo Fim do Contrato
                 st.session_state.status_pagamento = ""  # Limpar o campo Status de Pagamento
-                st.experimental_rerun()  # Recarrega a página para limpar os campos
+                st.experimental_rerun()  # Recarrega a página para limpar os campos e mostrar os dados atualizados
 
             else:
                 st.error("Por favor, preencha todos os campos!")
@@ -125,4 +125,3 @@ if "authenticated" not in st.session_state or not st.session_state.authenticated
     tela_login()  # Se não estiver autenticado, mostra a tela de login
 else:
     painel()  # Se estiver autenticado, mostra o painel
-
