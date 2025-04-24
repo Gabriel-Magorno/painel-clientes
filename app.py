@@ -2,19 +2,10 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+import openpyxl
 
 # Configuração inicial do Streamlit
 st.set_page_config(page_title="Sistema de Clientes", page_icon="📋", layout="wide")
-
-# Verificação de dependências
-try:
-    import openpyxl
-except ImportError:
-    st.error("Por favor, instale o pacote openpyxl usando: pip install openpyxl")
-    st.info("Você ainda pode usar o sistema, mas a exportação para Excel não estará disponível.")
-    EXCEL_DISPONIVEL = False
-else:
-    EXCEL_DISPONIVEL = True
 
 # Criação do diretório de exportação se não existir
 if not os.path.exists('export'):
