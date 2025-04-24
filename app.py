@@ -2,138 +2,170 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+import openpyxl  # Necessário para exportação Excel
 
-# Caminho para salvar o arquivo de clientes (CSV ou Excel)
-FILE_PATH = "clientes.csv"  # Pode ser alterado para "clientes.xlsx" se preferir Excel
+# Configuração inicial do Streamlit
+st.set_page_config(page_title="Sistema de Clientes", page_icon="📋", layout="wide")
 
-# Função para carregar os dados dos clientes do arquivo (CSV ou Excel)
+# Criação do diretório de exportação se não existir
+if not os.path.exists('export'):
+    os.makedirs('export')
+
+# Caminho para salvar o arquivo de clientes
+FILE_PATH = "clientes.csv"
+
 def carregar_dados_clientes():
-    if os.path.exists(FILE_PATH):
-        return pd.read_csv(FILE_PATH)  # Carrega o arquivo CSV
-    else:
-        return pd.DataFrame(columns=["Nome", "Mensalidade", "Data de Pagamento", "Início do Contrato", "Fim do Contrato", "Duração do Contrato", "Status"])
+    try:
+        if os.path.exists(FILE_PATH):
+            df = pd.read_csv(FILE_PATH, parse_dates=['Data de Pagamento', 'Início do Contrato', 'Fim do Contrato'])
+            return df
+        return pd.DataFrame(columns=["Nome", "Mensalidade", "Data de Pagamento", "Início do Contrato", 
+                                   "Fim do Contrato", "Duração do Contrato", "Status"])
+    except Exception as e:
+        st.error(f"Erro ao carregar dados: {str(e)}")
+        return pd.DataFrame(columns=["Nome", "Mensalidade", "Data de Pagamento", "Início do Contrato", 
+                                   "Fim do Contrato", "Duração do Contrato", "Status"])
 
-# Função para salvar os dados dos clientes no arquivo (CSV ou Excel)
 def salvar_dados_clientes(df):
-    df.to_csv(FILE_PATH, index=False)  # Salva o DataFrame no arquivo CSV
+    try:
+        df.to_csv(FILE_PATH, index=False)
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar dados: {str(e)}")
+        return False
 
-# Usuários e senhas armazenados no código (você pode adicionar mais)
+# Usuários e senhas
 USUARIOS = {
-    "gabriel": "123456",  # Nome de usuário e senha
+    "gabriel": "123456",
     "maria": "senha123",
     "joao": "senha456"
 }
 
 def autenticar(usuario, senha):
-    if usuario in USUARIOS and USUARIOS[usuario] == senha:
-        return True
-    return False
+    return usuario in USUARIOS and USUARIOS[usuario] == senha
 
-# Função de login
 def tela_login():
-    st.title("🔐 Login")
-    usuario = st.text_input("Usuário", "")
-    senha = st.text_input("Senha", "", type="password")
-    
-    if st.button("Entrar"):
-        if autenticar(usuario, senha):
-            st.session_state.authenticated = True  # Define o estado de autenticação
-            st.session_state.usuario = usuario  # Armazena o nome de usuário
-            st.session_state.first_login = False  # Marca que o login foi realizado
-            st.success(f"Bem-vindo, {usuario}!")
-            st.experimental_rerun()  # Recarrega a página para mostrar o painel
-        else:
-            st.error("Usuário ou senha inválidos!")
-
-# Função de exibição do painel de clientes
-def painel():
-    st.title("📋 Registro de Clientes")
-    
-    # Carregar os dados de clientes do arquivo
-    clientes = carregar_dados_clientes()
-    
-    # Formatação das datas para o formato brasileiro (DD/MM/YYYY)
-    def formatar_data(data):
-        return data.strftime("%d/%m/%Y") if isinstance(data, datetime) else data
-
-    # Formulário para adicionar ou editar um cliente
-    with st.form("form_cliente"):
-        nome_cliente = st.text_input("Nome do Cliente", key="nome_cliente")
-        mensalidade = st.number_input("Mensalidade", min_value=0.0, format="%.2f", key="mensalidade")
-        data_pagamento = st.date_input("Data do Pagamento", key="data_pagamento", format="DD/MM/YYYY")
-        inicio_contrato = st.date_input("Início do Contrato", key="inicio_contrato", format="DD/MM/YYYY")
-        fim_contrato = st.date_input("Fim do Contrato", key="fim_contrato", format="DD/MM/YYYY")
-        status_pagamento = st.selectbox("Status do Pagamento", ["Pago", "Pendente"], key="status_pagamento")
-        
-        # Editar cliente
-        cliente_para_editar = st.selectbox("Selecione um cliente para editar", ["Selecione um cliente"] + list(clientes["Nome"].unique()))
-        
-        # Se um cliente for selecionado, preencher os campos de edição com os dados atuais do cliente
-        if cliente_para_editar != "Selecione um cliente":
-            cliente_selecionado = clientes[clientes["Nome"] == cliente_para_editar].iloc[0]
-            nome_cliente = st.text_input("Nome do Cliente", cliente_selecionado["Nome"], key="nome_cliente")
-            mensalidade = st.number_input("Mensalidade", value=cliente_selecionado["Mensalidade"], format="%.2f", key="mensalidade")
-            data_pagamento = st.date_input("Data do Pagamento", value=pd.to_datetime(cliente_selecionado["Data de Pagamento"]), key="data_pagamento")
-            inicio_contrato = st.date_input("Início do Contrato", value=pd.to_datetime(cliente_selecionado["Início do Contrato"]), key="inicio_contrato")
-            fim_contrato = st.date_input("Fim do Contrato", value=pd.to_datetime(cliente_selecionado["Fim do Contrato"]), key="fim_contrato")
-            status_pagamento = st.selectbox("Status do Pagamento", ["Pago", "Pendente"], index=["Pago", "Pendente"].index(cliente_selecionado["Status"]), key="status_pagamento")
-
-        submitted = st.form_submit_button("Adicionar ou Editar Cliente")
+    st.title("🔐 Sistema de Gerenciamento de Clientes")
+    with st.form("login_form"):
+        usuario = st.text_input("Usuário")
+        senha = st.text_input("Senha", type="password")
+        submitted = st.form_submit_button("Entrar")
         
         if submitted:
-            if nome_cliente and mensalidade and data_pagamento and inicio_contrato and fim_contrato:
-                # Calculando a duração do contrato
-                duracao_contrato = (fim_contrato - inicio_contrato).days
-                
-                if cliente_para_editar == "Selecione um cliente":
-                    # Caso seja um novo cliente, adicionar na tabela
-                    novo_cliente = pd.DataFrame([[nome_cliente, mensalidade, data_pagamento, inicio_contrato, fim_contrato, duracao_contrato, status_pagamento]], columns=clientes.columns)
-                    clientes = pd.concat([clientes, novo_cliente], ignore_index=True)
-                    st.success(f"Cliente {nome_cliente} adicionado com sucesso!")
-                else:
-                    # Caso seja um cliente existente, editar os dados
-                    clientes.loc[clientes["Nome"] == cliente_para_editar, ["Nome", "Mensalidade", "Data de Pagamento", "Início do Contrato", "Fim do Contrato", "Duração do Contrato", "Status"]] = [
-                        nome_cliente, mensalidade, data_pagamento, inicio_contrato, fim_contrato, duracao_contrato, status_pagamento
-                    ]
-                    st.success(f"Cliente {nome_cliente} editado com sucesso!")
-
-                salvar_dados_clientes(clientes)  # Salvar os dados atualizados no arquivo
-
-                # Limpar os campos de input após o cadastro ou edição
-                st.session_state.nome_cliente = ""  # Limpar o campo Nome
-                st.session_state.mensalidade = 0.0  # Limpar o campo Mensalidade
-                st.session_state.data_pagamento = ""  # Limpar o campo Data de Pagamento
-                st.session_state.inicio_contrato = ""  # Limpar o campo Início do Contrato
-                st.session_state.fim_contrato = ""  # Limpar o campo Fim do Contrato
-                st.session_state.status_pagamento = ""  # Limpar o campo Status de Pagamento
-                
-                st.experimental_rerun()  # Recarrega a página para limpar os campos e mostrar os dados atualizados
-
+            if autenticar(usuario, senha):
+                st.session_state.authenticated = True
+                st.session_state.usuario = usuario
+                st.success(f"Bem-vindo, {usuario}!")
+                st.experimental_rerun()
             else:
-                st.error("Por favor, preencha todos os campos!")
+                st.error("Usuário ou senha inválidos!")
 
-    # Exibindo a tabela de clientes
-    st.write("### Lista de Clientes")
-    # Formatar as datas para o padrão brasileiro (DD/MM/YYYY)
-    clientes["Data de Pagamento"] = clientes["Data de Pagamento"].apply(lambda x: formatar_data(x))
-    clientes["Início do Contrato"] = clientes["Início do Contrato"].apply(lambda x: formatar_data(x))
-    clientes["Fim do Contrato"] = clientes["Fim do Contrato"].apply(lambda x: formatar_data(x))
-    st.dataframe(clientes)
+def formatar_data(data):
+    try:
+        if pd.isna(data):
+            return ""
+        if isinstance(data, str):
+            data = pd.to_datetime(data)
+        return data.strftime("%d/%m/%Y")
+    except:
+        return ""
 
-    # Opção de exportar os dados para Excel
-    if st.button("Exportar para Excel"):
-        clientes.to_excel("export/clientes.xlsx", index=False)
-        st.success(f"Arquivo exportado para: export/clientes.xlsx")
+def painel():
+    st.title(f"📋 Gerenciamento de Clientes - Usuário: {st.session_state.usuario}")
+    
+    # Carregar dados
+    clientes = carregar_dados_clientes()
+    
+    # Tabs para organizar o conteúdo
+    tab1, tab2, tab3 = st.tabs(["Cadastro/Edição", "Lista de Clientes", "Exportar/Excluir"])
+    
+    with tab1:
+        with st.form("form_cliente", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                nome_cliente = st.text_input("Nome do Cliente")
+                mensalidade = st.number_input("Mensalidade (R$)", min_value=0.0, format="%.2f")
+                data_pagamento = st.date_input("Data do Pagamento", format="DD/MM/YYYY")
+            
+            with col2:
+                inicio_contrato = st.date_input("Início do Contrato", format="DD/MM/YYYY")
+                fim_contrato = st.date_input("Fim do Contrato", format="DD/MM/YYYY")
+                status_pagamento = st.selectbox("Status do Pagamento", ["Pendente", "Pago"])
+            
+            # Seleção de cliente para edição
+            clientes_lista = ["Novo Cliente"] + list(clientes["Nome"].unique())
+            cliente_selecionado = st.selectbox("Selecione para editar", clientes_lista)
+            
+            submitted = st.form_submit_button("Salvar")
+            
+            if submitted:
+                if nome_cliente and mensalidade >= 0:
+                    duracao_contrato = (fim_contrato - inicio_contrato).days
+                    
+                    novo_registro = {
+                        "Nome": nome_cliente,
+                        "Mensalidade": mensalidade,
+                        "Data de Pagamento": data_pagamento,
+                        "Início do Contrato": inicio_contrato,
+                        "Fim do Contrato": fim_contrato,
+                        "Duração do Contrato": duracao_contrato,
+                        "Status": status_pagamento
+                    }
+                    
+                    if cliente_selecionado == "Novo Cliente":
+                        clientes = pd.concat([clientes, pd.DataFrame([novo_registro])], ignore_index=True)
+                        st.success("Cliente cadastrado com sucesso!")
+                    else:
+                        clientes.loc[clientes["Nome"] == cliente_selecionado] = pd.Series(novo_registro)
+                        st.success("Cliente atualizado com sucesso!")
+                    
+                    salvar_dados_clientes(clientes)
+                    st.experimental_rerun()
+                else:
+                    st.error("Preencha todos os campos obrigatórios!")
+    
+    with tab2:
+        st.write("### Lista de Clientes")
+        if not clientes.empty:
+            # Formatando as datas para exibição
+            clientes_exibicao = clientes.copy()
+            for col in ['Data de Pagamento', 'Início do Contrato', 'Fim do Contrato']:
+                clientes_exibicao[col] = clientes_exibicao[col].apply(formatar_data)
+            
+            st.dataframe(clientes_exibicao, use_container_width=True)
+        else:
+            st.info("Nenhum cliente cadastrado.")
+    
+    with tab3:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("### Exportar Dados")
+            if st.button("Exportar para Excel"):
+                try:
+                    export_path = "export/clientes.xlsx"
+                    clientes.to_excel(export_path, index=False)
+                    st.success(f"Dados exportados com sucesso para {export_path}")
+                except Exception as e:
+                    st.error(f"Erro ao exportar: {str(e)}")
+        
+        with col2:
+            st.write("### Excluir Cliente")
+            if not clientes.empty:
+                cliente_excluir = st.selectbox("Selecione o cliente para excluir", clientes["Nome"].unique())
+                if st.button("Excluir", type="primary"):
+                    if st.warning("Tem certeza que deseja excluir este cliente?"):
+                        clientes = clientes[clientes["Nome"] != cliente_excluir]
+                        salvar_dados_clientes(clientes)
+                        st.success(f"Cliente {cliente_excluir} excluído com sucesso!")
+                        st.experimental_rerun()
 
-    # Opção de excluir clientes
-    cliente_para_excluir = st.selectbox("Selecione um cliente para excluir", clientes["Nome"])
-    if st.button("Excluir Cliente"):
-        clientes = clientes[clientes["Nome"] != cliente_para_excluir]
-        salvar_dados_clientes(clientes)  # Salvar após exclusão
-        st.success(f"Cliente {cliente_para_excluir} excluído com sucesso!")
+# Controle de autenticação
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-# Verificando se o usuário está autenticado
-if "authenticated" not in st.session_state or not st.session_state.authenticated:
-    tela_login()  # Se não estiver autenticado, mostra a tela de login
+if not st.session_state.authenticated:
+    tela_login()
 else:
-    painel()  # Se estiver autenticado, mostra o painel
+    painel() 
